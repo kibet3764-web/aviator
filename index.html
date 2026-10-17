@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroPlay · Aviator Crash Game</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0b0e14;
+      color: #e8edf5;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.03 0"/></filter><rect width="120" height="120" filter="url(%23n)"/></svg>');
+      opacity: 0.4;
+      z-index: 999;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* HEADER */
+    header {
+      padding: 1.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .logo i { color: #f7b731; font-size: 1.8rem; }
+    .logo span { color: #f7b731; }
+
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      font-weight: 500;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08rem;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: #b0b8c5;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover, .nav-links a.active {
+      color: #f7b731;
+    }
+
+    .wallet {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #1a1f2b;
+      padding: 0.5rem 1.2rem;
+      border-radius: 40px;
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .wallet i { color: #f7b731; }
+    .wallet .balance { font-weight: 600; color: #fff; }
+
+    /* GAME LAYOUT */
+    .game-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 2rem;
+      margin: 2rem 0;
+    }
+
+    /* CRASH PANEL */
+    .crash-panel {
+      background: #11161f;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.05);
+      padding: 1.8rem;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.6);
+    }
+
+    .crash-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .crash-header h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 0.05rem;
+      color: #fff;
+    }
+
+    .crash-header h2 i {
+      color: #f7b731;
+      margin-right: 0.5rem;
+    }
+
+    .live-badge {
+      background: #1f2a3a;
+      padding: 0.3rem 0.9rem;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1rem;
+      color: #8f9bb0;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .live-badge .dot {
+      width: 8px;
+      height: 8px;
+      background: #2ecc71;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Canvas wrapper */
+    .canvas-wrapper {
+      background: #0b0f16;
+      border-radius: 16px;
+      padding: 0.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid #1e2532;
+      position: relative;
+      height: 320px;
+      overflow: hidden;
+    }
+
+    #crashCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 12px;
+    }
+
+    .multiplier-display {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 5rem;
+      font-weight: 800;
+      color: rgba(255,255,255,0.95);
+      text-shadow: 0 0 40px rgba(247,183,49,0.35);
+      letter-spacing: -0.05em;
+      pointer-events: none;
+      z-index: 5;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.15s;
+    }
+
+    .multiplier-display span {
+      font-size: 2.8rem;
+      color: #f7b731;
+      font-weight: 600;
+    }
+
+    .multiplier-display.crashed {
+      color: #ff4757;
+      text-shadow: 0 0 40px rgba(255,71,87,0.4);
+    }
+
+    .multiplier-display.crashed span { color: #ff4757; }
+
+    .multiplier-display.won {
+      color: #2ecc71;
+      text-shadow: 0 0 40px rgba(46,204,113,0.4);
+    }
+
+    .multiplier-display.won span { color: #2ecc71; }
+
+    .next-round-timer {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(11, 15, 22, 0.9);
+      padding: 0.35rem 1.1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: #f7b731;
+      font-weight: 600;
+      letter-spacing: 0.05rem;
+      z-index: 6;
+      border: 1px solid rgba(247,183,49,0.2);
+      display: none;
+    }
+
+    .next-round-timer.active { display: block; }
+
+    /* CONTROLS */
+    .crash-controls {
+      display: flex;
+      gap: 0.9rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .bet-input-group {
+      display: flex;
+      align-items: center;
+      background: #0b0f16;
+      border-radius: 50px;
+      padding: 0.2rem 0.2rem 0.2rem 1.2rem;
+      border: 1px solid #2a3242;
+      flex: 1;
+      min-width: 160px;
+      transition: border-color 0.2s;
+    }
+
+    .bet-input-group:focus-within {
+      border-color: #f7b731;
+    }
+
+    .bet-input-group i {
+      color: #f7b731;
+      margin-right: 0.7rem;
+    }
+
+    .bet-input-group input {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 500;
+      width: 100%;
+      padding: 0.75rem 0;
+      outline: none;
+    }
+
+    .bet-input-group input::-webkit-outer-spin-button,
+    .bet-input-group input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .quick-bet {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .quick-bet button {
+      background: #1a1f2b;
+      border: none;
+      color: #b0b8c5;
+      font-weight: 600;
+      padding: 0.5rem 0.9rem;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: 0.2s;
+      border: 1px solid transparent;
+    }
+
+    .quick-bet button:hover {
+      background: #2a3242;
+      color: #fff;
+      border-color: #f7b73140;
+    }
+
+    .action-btn {
+      background: #f7b731;
+      border: none;
+      color: #0b0e14;
+      font-weight: 700;
+      padding: 0.9rem 2.2rem;
+      border-radius: 60px;
+      font-size: 0.95rem;
+      letter-spacing: 0.03rem;
+      cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 6px 18px rgba(247,183,49,0.25);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      white-space: nowrap;
+      min-width: 180px;
+      justify-content: center;
+    }
+
+    .action-btn:hover:not(:disabled) {
+      background: #ffc94d;
+      transform: translateY(-1px);
+    }
+
+    .action-btn.cashout {
+      background: #2ecc71;
+      color: #0b0e14;
+      box-shadow: 0 6px 18px rgba(46,204,113,0.3);
+      animation: pulse-green 1.2s infinite;
+    }
+
+    .action-btn.cashout:hover:not(:disabled) {
+      background: #40e080;
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 6px 18px rgba(46,204,113,0.3); }
+      50% { box-shadow: 0 6px 25px rgba(46,204,113,0.6); }
+    }
+
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .action-btn.waiting {
+      background: #2a3242;
+      color: #b0b8c5;
+      box-shadow: none;
+    }
+
+    .action-btn i { font-size: 1.05rem; }
+
+    /* HISTORY */
+    .history-strip {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 1.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      scrollbar-width: thin;
+    }
+
+    .history-strip::-webkit-scrollbar { height: 4px; }
+    .history-strip::-webkit-scrollbar-thumb { background: #2a3242; border-radius: 10px; }
+
+    .history-item {
+      background: #0b0f16;
+      border-radius: 30px;
+      padding: 0.4rem 1rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+      border-left: 3px solid #2ecc71;
+      color: #b0b8c5;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .history-item.loss {
+      border-left-color: #ff4757;
+      color: #8f9bb0;
+    }
+
+    .history-item .mult {
+      color: #fff;
+      margin-left: 0.3rem;
+    }
+
+    .history-item.loss .mult { color: #ff4757; }
+
+    /* SIDEBAR */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: #11161f;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.05);
+      padding: 1.5rem;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.6);
+    }
+
+    .card-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.2rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      letter-spacing: 0.02rem;
+      color: #fff;
+    }
+
+    .card-title i { color: #f7b731; margin-right: 0.4rem; }
+
+    .card-title .badge {
+      background: #1f2a3a;
+      padding: 0.2rem 0.7rem;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: #8f9bb0;
+    }
+
+    .bets-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 0.3rem;
+    }
+
+    .bets-list::-webkit-scrollbar { width: 4px; }
+    .bets-list::-webkit-scrollbar-thumb { background: #2a3242; border-radius: 10px; }
+
+    .bet-row {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-size: 0.82rem;
+      padding: 0.5rem 0.6rem;
+      border-radius: 10px;
+      background: #0b0f16;
+      animation: fadeIn 0.4s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .bet-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2a3242, #1a1f2b);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f7b731;
+      font-weight: 600;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+    }
+
+    .bet-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .bet-name {
+      color: #d0d8e5;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bet-mult {
+      font-size: 0.72rem;
+      color: #2ecc71;
+      font-weight: 600;
+    }
+
+    .bet-mult.loss { color: #ff4757; }
+
+    .bet-amount {
+      color: #f7b731;
+      font-weight: 600;
+      font-size: 0.82rem;
+      flex-shrink: 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.9rem;
+    }
+
+    .stat-item {
+      background: #0b0f16;
+      padding: 0.9rem 0.6rem;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid #1a1f2b;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #f7b731;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-value.positive { color: #2ecc71; }
+    .stat-value.negative { color: #ff4757; }
+
+    .stat-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08rem;
+      color: #6b788c;
+      margin-top: 0.2rem;
+    }
+
+    /* GAMES ROW */
+    .games-row { margin: 1rem 0 2.5rem; }
+
+    .games-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 1.2rem;
+    }
+
+    .games-header h2 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    .games-header a {
+      color: #f7b731;
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      border-bottom: 1px solid transparent;
+      transition: 0.2s;
+    }
+
+    .games-header a:hover { border-color: #f7b731; }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1.2rem;
+    }
+
+    .game-card {
+      background: #11161f;
+      border-radius: 16px;
+      padding: 1.3rem 1rem;
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: transform 0.2s, border-color 0.2s;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0.7rem;
+    }
+
+    .game-card:hover {
+      transform: translateY(-4px);
+      border-color: #f7b73140;
+    }
+
+    .game-card .icon {
+      font-size: 1.8rem;
+      color: #f7b731;
+      background: #0b0f16;
+      width: 54px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid #1e2532;
+    }
+
+    .game-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .game-card p {
+      font-size: 0.7rem;
+      color: #6b788c;
+      text-transform: uppercase;
+      letter-spacing: 0.05rem;
+    }
+
+    /* FOOTER */
+    footer {
+      margin-top: auto;
+      padding: 2rem 0;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      color: #6b788c;
+      font-size: 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    footer .social a {
+      color: #6b788c;
+      margin-left: 1.2rem;
+      font-size: 1rem;
+      transition: color 0.2s;
+    }
+
+    footer .social a:hover { color: #f7b731; }
+
+    /* RESPONSIVE */
+    @media (max-width: 1000px) {
+      .game-layout { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      .container { padding: 0 1rem; }
+      .multiplier-display { font-size: 3.2rem; }
+      .multiplier-display span { font-size: 1.8rem; }
+      .crash-controls { flex-direction: column; align-items: stretch; }
+      .action-btn { width: 100%; }
+      .quick-bet { justify-content: center; flex-wrap: wrap; }
+      .crash-panel { padding: 1.2rem; }
+      .canvas-wrapper { height: 260px; }
+      .wallet { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="nav">
+        <a href="#" class="logo">
+          <i class="fas fa-plane"></i>
+          AERO<span>PLAY</span>
+        </a>
+        <div class="nav-links">
+          <a href="#" class="active">Aviator</a>
+          <a href="#">Slots</a>
+          <a href="#">Live Casino</a>
+          <a href="#">Promotions</a>
+        </div>
+        <div class="wallet">
+          <i class="fas fa-wallet"></i>
+          <span class="balance" id="walletBalance">$1,248.50</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="game-layout">
+      <!-- AVIATOR PANEL -->
+      <div class="crash-panel">
+        <div class="crash-header">
+          <h2><i class="fas fa-plane"></i> AVIATOR · CRASH</h2>
+          <div class="live-badge">
+            <span class="dot"></span> LIVE
+          </div>
+        </div>
+
+        <div class="canvas-wrapper">
+          <canvas id="crashCanvas"></canvas>
+          <div class="multiplier-display" id="multiplierDisplay">
+            <span>×</span>1.00
+          </div>
+          <div class="next-round-timer" id="nextRoundTimer">Next round in 5s</div>
+        </div>
+
+        <div class="crash-controls">
+          <div class="bet-input-group">
+            <i class="fas fa-dollar-sign"></i>
+            <input type="number" id="betAmount" value="10" min="1" step="1" placeholder="Bet amount">
+          </div>
+          <div class="quick-bet">
+            <button data-bet="10">$10</button>
+            <button data-bet="50">$50</button>
+            <button data-bet="100">$100</button>
+            <button data-bet="500">$500</button>
+          </div>
+          <button class="action-btn" id="actionBtn">
+            <i class="fas fa-play"></i> PLACE BET
+          </button>
+        </div>
+
+        <div class="history-strip" id="historyStrip"></div>
+      </div>
+
+      <!-- SIDEBAR -->
+      <div class="sidebar">
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fas fa-users"></i> LIVE BETS</span>
+            <span class="badge" id="playerCount">36 playing</span>
+          </div>
+          <div class="bets-list" id="liveBetsList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fas fa-chart-simple"></i> SESSION STATS</span>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value" id="statProfit">$0.00</div>
+              <div class="stat-label">Profit</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="statRounds">0</div>
+              <div class="stat-label">Rounds</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="statBest">1.00x</div>
+              <div class="stat-label">Best Multi</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="statWins">0</div>
+              <div class="stat-label">Wins</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MORE GAMES -->
+    <div class="games-row">
+      <div class="games-header">
+        <h2>MORE GAMES</h2>
+        <a href="#">VIEW ALL <i class="fas fa-arrow-right"></i></a>
+      </div>
+      <div class="games-grid">
+        <div class="game-card">
+          <div class="icon"><i class="fas fa-dice"></i></div>
+          <h3>Dice</h3>
+          <p>Provably fair</p>
+        </div>
+        <div class="game-card">
+          <div class="icon"><i class="fas fa-bomb"></i></div>
+          <h3>Mines</h3>
+          <p>Strategy</p>
+        </div>
+        <div class="game-card">
+          <div class="icon"><i class="fas fa-chart-line"></i></div>
+          <h3>Plinko</h3>
+          <p>Instant win</p>
+        </div>
+        <div class="game-card">
+          <div class="icon"><i class="fas fa-slot-machine"></i></div>
+          <h3>Slots</h3>
+          <p>Jackpots</p>
+        </div>
+        <div class="game-card">
+          <div class="icon"><i class="fas fa-rotate"></i></div>
+          <h3>Roulette</h3>
+          <p>Live dealer</p>
+        </div>
+        <div class="game-card">
+          <div class="icon"><i class="fas fa-crown"></i></div>
+          <h3>Blackjack</h3>
+          <p>Classic</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div>© 2025 AeroPlay — all rights reserved. 18+ only. Play responsibly.</div>
+      <div class="social">
+        <a href="#"><i class="fab fa-twitter"></i></a>
+        <a href="#"><i class="fab fa-discord"></i></a>
+        <a href="#"><i class="fab fa-telegram"></i></a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // ===== DOM refs =====
+      const canvas = document.getElementById('crashCanvas');
+      const ctx = canvas.getContext('2d');
+      const multiplierDisplay = document.getElementById('multiplierDisplay');
+      const actionBtn = document.getElementById('actionBtn');
+      const betAmountInput = document.getElementById('betAmount');
+      const quickBetBtns = document.querySelectorAll('.quick-bet button');
+      const liveBetsList = document.getElementById('liveBetsList');
+      const historyStrip = document.getElementById('historyStrip');
+      const nextRoundTimer = document.getElementById('nextRoundTimer');
+      const playerCountEl = document.getElementById('playerCount');
+      const walletBalanceEl = document.getElementById('walletBalance');
+
+      // stats
+      const statProfit = document.getElementById('statProfit');
+      const statRounds = document.getElementById('statRounds');
+      const statBest = document.getElementById('statBest');
+      const statWins = document.getElementById('statWins');
+
+      // ===== Canvas sizing (crisp on hi-dpi) =====
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawGraph(currentMultiplier, state.phase);
+      }
+      window.addEventListener('resize', resizeCanvas);
+
+      // ===== State =====
+      const state = {
+        phase: 'waiting',           // 'waiting' | 'running' | 'crashed' | 'cashedout'
+        multiplier: 1.00,
+        betPlaced: false,
+        hasCashedOut: false,
+        betAmount: 10,
+        hasBetThisRound: false,     // did user place bet in this round
+        roundActive: false,
+        // session stats
+        totalProfit: 0,
+        totalRounds: 0,
+        totalWins: 0,
+        bestMultiplier: 1.00,
+        walletBalance: 1248.50,
+        // animation
+        growthStart: 0,
+        growthSpeed: 1,
+        crashPoint: 2.0,
+        nextRoundTime: 5,
+        roundTimerId: null,
+        growthRaf: null,
+        // history
+        history: []
+      };
+
+      let currentMultiplier = 1.00;
+
+      // ===== Fake players =====
+      const fakeNames = ['Luna', 'Kai', 'Rico', 'Mira', 'Zane', 'Ivy', 'Odin', 'Sage', 'Nova', 'Jax', 'Rhea', 'Ezra', 'Lila', 'Finn', 'Aria', 'Neo', 'Kira', 'Dante', 'Suri', 'Vex'];
+
+      function generateLiveBets() {
+        const count = 5 + Math.floor(Math.random() * 4);
+        const bets = [];
+        for (let i = 0; i < count; i++) {
+          const name = fakeNames[Math.floor(Math.random() * fakeNames.length)] + (Math.floor(Math.random() * 90) + 10);
+          const amount = (Math.floor(Math.random() * 20) + 1) * 10;
+          const isLoss = Math.random() < 0.35;
+          const mult = isLoss ? '0.00' : (Math.random() * 4 + 1.0).toFixed(2);
+          bets.push({ name, amount, multiplier: mult, isLoss });
+        }
+        bets.sort((a, b) => parseFloat(b.multiplier) - parseFloat(a.multiplier));
+        return bets;
+      }
+
+      function renderLiveBets() {
+        const bets = generateLiveBets();
+        liveBetsList.innerHTML = '';
+        bets.forEach((bet, i) => {
+          const row = document.createElement('div');
+          row.className = 'bet-row';
+          row.style.animationDelay = (i * 0.03) + 's';
+          row.innerHTML = `
+            <div class="bet-avatar">${bet.name.charAt(0)}</div>
+            <div class="bet-info">
+              <span class="bet-name">${bet.name}</span>
+              <span class="bet-mult ${bet.isLoss ? 'loss' : ''}">×${bet.multiplier}</span>
+            </div>
+            <span class="bet-amount">$${bet.amount}</span>
+          `;
+          liveBetsList.appendChild(row);
+        });
+        // random player count
+        playerCountEl.textContent = (28 + Math.floor(Math.random() * 25)) + ' playing';
+      }
+
+      // ===== Canvas drawing =====
+      function drawGraph(multiplier, phase) {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+        if (w === 0 || h === 0) return;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // grid
+        ctx.strokeStyle = '#1a1f2b';
+        ctx.lineWidth = 1;
+        const gridStep = 40;
+        for (let x = 0; x < w; x += gridStep) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, h);
+          ctx.stroke();
+        }
+        for (let y = 0; y < h; y += gridStep) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        // curve points
+        const points = [];
+        const segments = 120;
+        const maxMultiplier = Math.min(multiplier, 50);
+        const scaleX = w / segments;
+        const baseY = h - 25;
+        const topY = 25;
+
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          // exponential-ish curve: y grows slowly then faster
+          const exponent = 1.9;
+          const normalized = Math.pow(t, exponent);
+          const targetMult = Math.max(1, maxMultiplier);
+          const y = baseY - (normalized * (baseY - topY) * Math.min(1, (targetMult - 1) / 9 + 0.05));
+          const x = i * scaleX;
+          points.push({ x, y: Math.max(topY, Math.min(baseY, y)) });
+        }
+
+        // fill area under curve
+        const crashColor = phase === 'crashed' ? '#ff4757' : (phase === 'cashedout' ? '#2ecc71' : '#f7b731');
+        ctx.beginPath();
+        ctx.moveTo(0, baseY);
+        points.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(w, baseY);
+        ctx.closePath();
+        const gradient = ctx.createLinearGradient(0, 0, 0, h);
+        if (phase === 'crashed') {
+          gradient.addColorStop(0, 'rgba(255, 71, 87, 0.18)');
+          gradient.addColorStop(0.8, 'rgba(255, 71, 87, 0.01)');
+        } else if (phase === 'cashedout') {
+          gradient.addColorStop(0, 'rgba(46, 204, 113, 0.15)');
+          gradient.addColorStop(0.8, 'rgba(46, 204, 113, 0.01)');
+        } else {
+          gradient.addColorStop(0, 'rgba(247, 183, 49, 0.18)');
+          gradient.addColorStop(0.8, 'rgba(247, 183, 49, 0.01)');
+        }
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // stroke curve
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        points.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.strokeStyle = crashColor;
+        ctx.lineWidth =
